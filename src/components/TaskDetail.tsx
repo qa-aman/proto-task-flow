@@ -107,7 +107,7 @@ const TaskDetail = ({ task, isOpen, onClose, onUpdate, teamMembers }: TaskDetail
       const subtask = {
         id: Date.now(),
         title: newSubtask.title,
-        assigneeId: newSubtask.assigneeId ? parseInt(newSubtask.assigneeId) : undefined,
+        assigneeId: newSubtask.assigneeId && newSubtask.assigneeId !== "none" ? parseInt(newSubtask.assigneeId) : undefined,
         status: newSubtask.status,
         dueDate: newSubtask.dueDate || undefined
       };
@@ -234,13 +234,14 @@ const TaskDetail = ({ task, isOpen, onClose, onUpdate, teamMembers }: TaskDetail
                         <div className="space-y-2">
                           <Label htmlFor="subtaskAssignee">Assignee</Label>
                           <Select 
-                            value={newSubtask.assigneeId} 
-                            onValueChange={(value) => setNewSubtask({ ...newSubtask, assigneeId: value })}
+                            value={newSubtask.assigneeId || "none"} 
+                            onValueChange={(value) => setNewSubtask({ ...newSubtask, assigneeId: value === "none" ? "" : value })}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="Select assignee" />
                             </SelectTrigger>
                             <SelectContent>
+                              <SelectItem value="none">No assignee</SelectItem>
                               {teamMembers.map((member) => (
                                 <SelectItem key={member.id} value={member.id.toString()}>
                                   {member.name}

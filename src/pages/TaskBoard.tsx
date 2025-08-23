@@ -157,7 +157,7 @@ const TaskBoard = () => {
         timeSpent: 0,
         priority: newTask.priority,
         comments: [],
-        subProjectId: newTask.subProjectId ? parseInt(newTask.subProjectId) : (currentSubproject?.id || null),
+        subProjectId: newTask.subProjectId && newTask.subProjectId !== "none" ? parseInt(newTask.subProjectId) : (currentSubproject?.id || null),
         subtasks: [],
         recurrence: newTask.recurrence
       };
@@ -350,12 +350,12 @@ const TaskBoard = () => {
                 {project?.subProjects && project.subProjects.length > 0 && (
                   <div className="space-y-2">
                     <Label htmlFor="subproject">Subproject</Label>
-                    <Select value={newTask.subProjectId} onValueChange={(value) => setNewTask({ ...newTask, subProjectId: value })}>
+                    <Select value={newTask.subProjectId || "none"} onValueChange={(value) => setNewTask({ ...newTask, subProjectId: value === "none" ? "" : value })}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select subproject (optional)" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {project.subProjects.map((subproject: any) => (
                           <SelectItem key={subproject.id} value={subproject.id.toString()}>
                             {subproject.name}
