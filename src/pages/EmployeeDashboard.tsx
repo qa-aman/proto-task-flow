@@ -137,6 +137,13 @@ const EmployeeDashboard = () => {
           <div className="flex gap-2">
             <Button
               variant="outline"
+              onClick={() => navigate("/owner-dashboard")}
+              className="hover:bg-surface"
+            >
+              Owner View
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => navigate("/manager-dashboard")}
               className="hover:bg-surface"
             >

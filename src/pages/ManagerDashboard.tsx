@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Users, AlertTriangle, Clock, TrendingUp, Calendar, User, CheckCircle } from "lucide-react";
+import { ArrowLeft, Users, AlertTriangle, Clock, TrendingUp, Calendar, User, CheckCircle, Building } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -180,6 +180,13 @@ const ManagerDashboard = () => {
           <div className="flex gap-2">
             <Button
               variant="outline"
+              onClick={() => navigate("/owner-dashboard")}
+              className="hover:bg-surface"
+            >
+              Owner View
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => navigate("/employee-dashboard")}
               className="hover:bg-surface"
             >
@@ -250,10 +257,11 @@ const ManagerDashboard = () => {
         </div>
 
         <Tabs value={selectedView} onValueChange={setSelectedView}>
-          <TabsList className="grid w-full grid-cols-3 lg:w-1/2">
+          <TabsList className="grid w-full grid-cols-4 lg:w-2/3">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="project-board">Project Board</TabsTrigger>
+            <TabsTrigger value="member-board">Member Board</TabsTrigger>
             <TabsTrigger value="team">Team</TabsTrigger>
-            <TabsTrigger value="tasks">Tasks</TabsTrigger>
           </TabsList>
 
           <div className="mt-8">
@@ -423,78 +431,174 @@ const ManagerDashboard = () => {
               </div>
             </TabsContent>
 
-            <TabsContent value="tasks" className="space-y-6">
-              <div className="space-y-4">
-                {teamTasks.map((task) => (
-                  <Card 
-                    key={task.id}
-                    className={`cursor-pointer hover:shadow-md transition-all duration-200 border-l-4 ${getStatusColor(task.status)}`}
-                    onClick={() => handleTaskClick(task)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-foreground mb-1">{task.title}</h4>
-                          <p className="text-sm text-muted-foreground mb-2">{task.project}</p>
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-6 w-6">
-                              <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                                {task.assignee.split(' ').map(n => n[0]).join('')}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="text-sm font-medium">{task.assignee}</span>
+            <TabsContent value="project-board" className="space-y-6">
+              <div className="grid grid-cols-1 gap-6">
+                {["Website Redesign", "Mobile App Development"].map((projectName) => {
+                  const projectTasks = teamTasks.filter(task => task.project === projectName);
+                  return (
+                    <Card key={projectName}>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Building className="h-5 w-5" />
+                          {projectName}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                          {["open", "progress", "blocked", "done"].map((status) => {
+                            const statusTasks = projectTasks.filter(task => task.status === status);
+                            return (
+                              <div key={status} className="space-y-3">
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-3 h-3 rounded-full bg-kanban-${status}`} />
+                                  <h4 className="font-medium capitalize">{status.replace("-", " ")}</h4>
+                                  <Badge variant="outline">{statusTasks.length}</Badge>
+                                </div>
+                                <div className="space-y-2">
+                                  {statusTasks.map((task) => (
+                                    <Card 
+                                      key={task.id}
+                                      className="cursor-pointer hover:shadow-sm transition-all duration-200 text-xs"
+                                      onClick={() => handleTaskClick(task)}
+                                    >
+                                      <CardContent className="p-3">
+                                        <p className="font-medium mb-1">{task.title}</p>
+                                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                          <span>{task.assignee}</span>
+                                          <Badge variant={getPriorityColor(task.priority) as any} className="text-xs">
+                                            {task.priority}
+                                          </Badge>
+                                        </div>
+                                      </CardContent>
+                                    </Card>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="member-board" className="space-y-6">
+              <div className="grid grid-cols-1 gap-6">
+                {teamMembers.map((member) => {
+                  const memberTasks = teamTasks.filter(task => task.assignee === member.name);
+                  return (
+                    <Card key={member.id}>
+                      <CardHeader>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarFallback className="bg-primary text-primary-foreground">
+                              {member.initials}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <CardTitle>{member.name}</CardTitle>
+                            <p className="text-sm text-muted-foreground">{member.role}</p>
+                          </div>
+                          <div className="ml-auto">
+                            <Badge variant="outline">{memberTasks.length} tasks</Badge>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                          {["open", "progress", "blocked", "done"].map((status) => {
+                            const statusTasks = memberTasks.filter(task => task.status === status);
+                            return (
+                              <div key={status} className="space-y-3">
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-3 h-3 rounded-full bg-kanban-${status}`} />
+                                  <h4 className="font-medium capitalize text-sm">{status.replace("-", " ")}</h4>
+                                  <Badge variant="outline" className="text-xs">{statusTasks.length}</Badge>
+                                </div>
+                                <div className="space-y-2">
+                                  {statusTasks.map((task) => (
+                                    <Card 
+                                      key={task.id}
+                                      className="cursor-pointer hover:shadow-sm transition-all duration-200 text-xs"
+                                      onClick={() => handleTaskClick(task)}
+                                    >
+                                      <CardContent className="p-2">
+                                        <p className="font-medium mb-1 text-xs">{task.title}</p>
+                                        <div className="flex items-center justify-between text-xs">
+                                          <span className="text-muted-foreground">{task.project}</span>
+                                          <Badge variant={getPriorityColor(task.priority) as any} className="text-xs">
+                                            {task.priority}
+                                          </Badge>
+                                        </div>
+                                      </CardContent>
+                                    </Card>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="team" className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {teamMembers.map((member) => {
+                  const utilization = (member.logged / member.capacity) * 100;
+                  return (
+                    <Card 
+                      key={member.id}
+                      className="cursor-pointer hover:shadow-md transition-all duration-200"
+                      onClick={() => handleMemberClick(member)}
+                    >
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center gap-4">
+                          <Avatar className="h-12 w-12">
+                            <AvatarFallback className="bg-primary text-primary-foreground">
+                              {member.initials}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <CardTitle className="text-lg">{member.name}</CardTitle>
+                            <p className="text-muted-foreground">{member.role}</p>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-foreground">{member.activeTasks}</p>
+                            <p className="text-xs text-muted-foreground">Active Tasks</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-foreground">{member.completedTasks}</p>
+                            <p className="text-xs text-muted-foreground">Completed</p>
                           </div>
                         </div>
                         
-                        <div className="flex items-center gap-2">
-                          {task.isOverdue && (
-                            <Badge variant="danger" className="text-xs">
-                              Overdue
-                            </Badge>
-                          )}
-                          <Badge variant={getPriorityColor(task.priority) as any} className="text-xs">
-                            {task.priority}
-                          </Badge>
-                          <Badge 
-                            variant="outline" 
-                            className={`text-xs ${
-                              task.status === "open" ? "border-kanban-open text-kanban-open" :
-                              task.status === "progress" ? "border-kanban-progress text-kanban-progress" :
-                              task.status === "blocked" ? "border-kanban-blocked text-kanban-blocked" :
-                              "border-kanban-done text-kanban-done"
-                            }`}
-                          >
-                            {task.status}
-                          </Badge>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Weekly Hours</span>
+                            <span className="font-medium">
+                              {member.logged}h / {member.capacity}h
+                            </span>
+                          </div>
+                          <Progress value={utilization} className="h-2" />
+                          <p className={`text-xs ${getUtilizationColor(utilization)}`}>
+                            {Math.round(utilization)}% utilization
+                          </p>
                         </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Calendar className="h-3 w-3" />
-                          Due: {new Date(task.deadline).toLocaleDateString()}
-                        </div>
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Clock className="h-3 w-3" />
-                          {task.timeSpent}h / {task.estimatedTime}h
-                        </div>
-                      </div>
-                      
-                      <div className="mt-3">
-                        <div className="flex justify-between text-xs mb-1">
-                          <span className="text-muted-foreground">Progress</span>
-                          <span className="font-medium">
-                            {Math.round((task.timeSpent / task.estimatedTime) * 100)}%
-                          </span>
-                        </div>
-                        <Progress 
-                          value={(task.timeSpent / task.estimatedTime) * 100} 
-                          className="h-1"
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             </TabsContent>
           </div>

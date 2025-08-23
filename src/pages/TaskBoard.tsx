@@ -25,7 +25,8 @@ const TaskBoard = () => {
     assignee: "",
     startDate: "",
     endDate: "",
-    status: "open"
+    status: "open",
+    priority: "medium"
   });
 
   const [columns] = useState([
@@ -108,7 +109,7 @@ const TaskBoard = () => {
           { ...teamMembers.find(m => m.id.toString() === newTask.assignee)!, avatar: "" } : 
           null,
         timeSpent: 0,
-        priority: "medium",
+        priority: newTask.priority,
         comments: []
       };
       setTasks([...tasks, task]);
@@ -118,7 +119,8 @@ const TaskBoard = () => {
         assignee: "",
         startDate: "",
         endDate: "",
-        status: "open"
+        status: "open",
+        priority: "medium"
       });
       setIsCreateDialogOpen(false);
     }
@@ -194,7 +196,7 @@ const TaskBoard = () => {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="assignee">Assignee</Label>
                     <Select value={newTask.assignee} onValueChange={(value) => setNewTask({ ...newTask, assignee: value })}>
@@ -222,6 +224,21 @@ const TaskBoard = () => {
                         <SelectItem value="progress">In Progress</SelectItem>
                         <SelectItem value="blocked">Blocked</SelectItem>
                         <SelectItem value="done">Done</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="priority">Priority</Label>
+                    <Select value={newTask.priority} onValueChange={(value) => setNewTask({ ...newTask, priority: value })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">Low</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="critical">Critical</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

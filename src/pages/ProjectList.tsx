@@ -1,14 +1,17 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Users, User, Calendar, MoreHorizontal } from "lucide-react";
+import { Plus, Users, User, Calendar, MoreHorizontal, Building, FolderPlus, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const ProjectList = () => {
   const navigate = useNavigate();
@@ -16,60 +19,94 @@ const ProjectList = () => {
     {
       id: 1,
       name: "Website Redesign",
+      description: "Complete redesign of company website with modern UI/UX",
       owner: { name: "Sarah Johnson", avatar: "/avatars/sarah.jpg", initials: "SJ" },
       members: [
-        { name: "John Doe", initials: "JD" },
-        { name: "Jane Smith", initials: "JS" },
-        { name: "Mike Wilson", initials: "MW" }
+        { id: 1, name: "John Doe", initials: "JD" },
+        { id: 2, name: "Jane Smith", initials: "JS" },
+        { id: 3, name: "Mike Wilson", initials: "MW" }
       ],
       status: "active",
       tasks: { total: 24, completed: 12 },
-      deadline: "2024-02-15"
+      deadline: "2024-02-15",
+      subProjects: [
+        { id: 11, name: "Frontend Redesign", status: "active", tasks: { total: 12, completed: 8 } },
+        { id: 12, name: "Backend API", status: "planning", tasks: { total: 12, completed: 4 } }
+      ]
     },
     {
       id: 2,
       name: "Mobile App Development",
+      description: "Native mobile application for iOS and Android",
       owner: { name: "David Chen", avatar: "/avatars/david.jpg", initials: "DC" },
       members: [
-        { name: "Emma Brown", initials: "EB" },
-        { name: "Alex Turner", initials: "AT" }
+        { id: 4, name: "Emma Brown", initials: "EB" },
+        { id: 5, name: "Alex Turner", initials: "AT" }
       ],
       status: "active",
       tasks: { total: 18, completed: 8 },
-      deadline: "2024-03-20"
+      deadline: "2024-03-20",
+      subProjects: [
+        { id: 21, name: "iOS App", status: "active", tasks: { total: 9, completed: 4 } },
+        { id: 22, name: "Android App", status: "active", tasks: { total: 9, completed: 4 } }
+      ]
     },
     {
       id: 3,
       name: "Marketing Campaign",
+      description: "Q1 digital marketing campaign for product launch",
       owner: { name: "Lisa Rodriguez", avatar: "/avatars/lisa.jpg", initials: "LR" },
       members: [
-        { name: "Tom Anderson", initials: "TA" },
-        { name: "Sophie Lee", initials: "SL" },
-        { name: "Chris Martin", initials: "CM" },
-        { name: "Anna Davis", initials: "AD" }
+        { id: 6, name: "Tom Anderson", initials: "TA" },
+        { id: 7, name: "Sophie Lee", initials: "SL" },
+        { id: 8, name: "Chris Martin", initials: "CM" },
+        { id: 9, name: "Anna Davis", initials: "AD" }
       ],
       status: "planning",
       tasks: { total: 15, completed: 3 },
-      deadline: "2024-01-30"
+      deadline: "2024-01-30",
+      subProjects: []
     }
   ]);
 
+  const teamMembers = [
+    { id: 1, name: "John Doe", initials: "JD", role: "Frontend Developer" },
+    { id: 2, name: "Jane Smith", initials: "JS", role: "Backend Developer" },
+    { id: 3, name: "Mike Wilson", initials: "MW", role: "UI/UX Designer" },
+    { id: 4, name: "Emma Brown", initials: "EB", role: "Mobile Developer" },
+    { id: 5, name: "Alex Turner", initials: "AT", role: "QA Engineer" },
+    { id: 6, name: "Tom Anderson", initials: "TA", role: "Marketing Specialist" },
+    { id: 7, name: "Sophie Lee", initials: "SL", role: "Content Creator" },
+    { id: 8, name: "Chris Martin", initials: "CM", role: "SEO Specialist" },
+    { id: 9, name: "Anna Davis", initials: "AD", role: "Social Media Manager" }
+  ];
+
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [newProject, setNewProject] = useState({ name: "", description: "" });
+  const [newProject, setNewProject] = useState({ 
+    name: "", 
+    description: "", 
+    deadline: "",
+    members: [] as string[]
+  });
 
   const handleCreateProject = () => {
     if (newProject.name.trim()) {
+      const selectedMembers = teamMembers.filter(member => 
+        newProject.members.includes(member.id.toString())
+      );
       const project = {
         id: projects.length + 1,
         name: newProject.name,
+        description: newProject.description,
         owner: { name: "Current User", initials: "CU", avatar: "" },
-        members: [],
+        members: selectedMembers,
         status: "planning",
         tasks: { total: 0, completed: 0 },
-        deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        deadline: newProject.deadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        subProjects: []
       };
       setProjects([...projects, project]);
-      setNewProject({ name: "", description: "" });
+      setNewProject({ name: "", description: "", deadline: "", members: [] });
       setIsCreateDialogOpen(false);
     }
   };
@@ -94,6 +131,14 @@ const ProjectList = () => {
           </div>
           
           <div className="flex gap-4">
+            <Button
+              variant="outline"
+              onClick={() => navigate("/owner-dashboard")}
+              className="hover:bg-surface"
+            >
+              <Crown className="mr-2 h-4 w-4" />
+              Owner View
+            </Button>
             <Button
               variant="outline"
               onClick={() => navigate("/employee-dashboard")}
@@ -132,14 +177,59 @@ const ProjectList = () => {
                       placeholder="Enter project name"
                     />
                   </div>
+                  
                   <div className="space-y-2">
                     <Label htmlFor="description">Description</Label>
-                    <Input
+                    <Textarea
                       id="description"
                       value={newProject.description}
                       onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
                       placeholder="Enter project description"
+                      rows={3}
                     />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="deadline">Deadline (Optional)</Label>
+                    <Input
+                      id="deadline"
+                      type="date"
+                      value={newProject.deadline}
+                      onChange={(e) => setNewProject({ ...newProject, deadline: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Team Members</Label>
+                    <div className="max-h-40 overflow-y-auto space-y-2 border rounded-md p-3">
+                      {teamMembers.map((member) => (
+                        <div key={member.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`member-${member.id}`}
+                            checked={newProject.members.includes(member.id.toString())}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setNewProject({
+                                  ...newProject,
+                                  members: [...newProject.members, member.id.toString()]
+                                });
+                              } else {
+                                setNewProject({
+                                  ...newProject,
+                                  members: newProject.members.filter(id => id !== member.id.toString())
+                                });
+                              }
+                            }}
+                          />
+                          <label
+                            htmlFor={`member-${member.id}`}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            {member.name} - {member.role}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <div className="flex justify-end gap-3">
                     <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
@@ -245,6 +335,28 @@ const ProjectList = () => {
                       )}
                     </div>
                   </div>
+
+                  {/* Sub-projects */}
+                  {project.subProjects && project.subProjects.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Sub-projects ({project.subProjects.length})</p>
+                      <div className="space-y-1">
+                        {project.subProjects.map((subProject) => (
+                          <div key={subProject.id} className="flex items-center justify-between text-xs p-2 bg-surface rounded">
+                            <span className="font-medium">{subProject.name}</span>
+                            <div className="flex items-center gap-2">
+                              <Badge variant={getStatusColor(subProject.status) as any} className="text-xs">
+                                {subProject.status}
+                              </Badge>
+                              <span className="text-muted-foreground">
+                                {subProject.tasks.completed}/{subProject.tasks.total}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Progress */}
                   <div className="space-y-2">

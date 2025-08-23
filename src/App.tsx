@@ -7,6 +7,7 @@ import ProjectList from "./pages/ProjectList";
 import TaskBoard from "./pages/TaskBoard";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 import ManagerDashboard from "./pages/ManagerDashboard";
+import OwnerDashboard from "./pages/OwnerDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,6 +24,7 @@ const App = () => (
           <Route path="/projects/:id/board" element={<TaskBoard />} />
           <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
           <Route path="/manager-dashboard" element={<ManagerDashboard />} />
+          <Route path="/owner-dashboard" element={<OwnerDashboard />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

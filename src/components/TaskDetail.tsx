@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Calendar, Clock, User, MessageSquare, Paperclip, Plus, Send, Reply } from "lucide-react";
+import { X, Calendar, Clock, User, MessageSquare, Paperclip, Plus, Send, Reply, Flag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -295,6 +295,24 @@ const TaskDetail = ({ task, isOpen, onClose, onUpdate, teamMembers }: TaskDetail
                       <SelectItem value="progress">In Progress</SelectItem>
                       <SelectItem value="blocked">Blocked</SelectItem>
                       <SelectItem value="done">Done</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Priority</Label>
+                  <Select 
+                    value={editedTask.priority} 
+                    onValueChange={(value) => setEditedTask({ ...editedTask, priority: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="critical">Critical</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
