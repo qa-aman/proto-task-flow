@@ -353,15 +353,15 @@ const TaskBoard = () => {
                         </div>
                       </div>
                       
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {task.startDate}
-                        </div>
-                        <div>
-                          → {task.endDate}
-                        </div>
-                      </div>
+                       <div className="flex items-center justify-between text-xs text-muted-foreground">
+                         <div className="flex items-center gap-1">
+                           <Calendar className="h-3 w-3" />
+                           {task.startDate || "—"}
+                         </div>
+                         <div>
+                           → {task.endDate || "—"}
+                         </div>
+                       </div>
                     </CardContent>
                   </Card>
                 ))}

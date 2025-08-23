@@ -12,6 +12,7 @@ const ManagerDashboard = () => {
   const navigate = useNavigate();
   
   const [selectedView, setSelectedView] = useState("overview");
+  const [selectedTimeReportPeriod, setSelectedTimeReportPeriod] = useState("week");
   
   const teamMembers = [
     {
@@ -156,6 +157,30 @@ const ManagerDashboard = () => {
   const handleMemberClick = (member: any) => {
     navigate("/employee-dashboard");
   };
+
+  // Sample time report data structure  
+  const getTimeReports = () => {
+    const currentPeriod = selectedTimeReportPeriod;
+    
+    const projectTimeData = {
+      day: { "Website Redesign": 12, "Mobile App Development": 8 },
+      week: { "Website Redesign": 45, "Mobile App Development": 32 },
+      month: { "Website Redesign": 180, "Mobile App Development": 120 }
+    };
+
+    const memberTimeData = {
+      day: { "Sarah Johnson": 6, "John Doe": 7, "Jane Smith": 5, "Mike Wilson": 6 },
+      week: { "Sarah Johnson": 38, "John Doe": 42, "Jane Smith": 35, "Mike Wilson": 40 },
+      month: { "Sarah Johnson": 152, "John Doe": 168, "Jane Smith": 140, "Mike Wilson": 160 }
+    };
+
+    return {
+      projectTimes: projectTimeData[currentPeriod as keyof typeof projectTimeData] || {},
+      memberTimes: memberTimeData[currentPeriod as keyof typeof memberTimeData] || {}
+    };
+  };
+
+  const timeReports = getTimeReports();
 
   return (
     <div className="min-h-screen bg-background">
@@ -370,11 +395,102 @@ const ManagerDashboard = () => {
                         <CheckCircle className="h-12 w-12 mx-auto mb-3 text-success" />
                         <p className="text-sm text-muted-foreground">No priority issues!</p>
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
+                     )}
+                   </CardContent>
+                 </Card>
+               </div>
+
+               {/* Time Reports Section */}
+               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                 {/* Project Time Reports */}
+                 <Card>
+                   <CardHeader>
+                     <CardTitle className="flex items-center gap-2">
+                       <Building className="h-5 w-5" />
+                       Project Time Reports
+                     </CardTitle>
+                   </CardHeader>
+                   <CardContent className="space-y-4">
+                     <Tabs value={selectedTimeReportPeriod} onValueChange={setSelectedTimeReportPeriod}>
+                       <TabsList className="grid w-full grid-cols-3">
+                         <TabsTrigger value="day">Day</TabsTrigger>
+                         <TabsTrigger value="week">Week</TabsTrigger>
+                         <TabsTrigger value="month">Month</TabsTrigger>
+                       </TabsList>
+                       
+                       <TabsContent value={selectedTimeReportPeriod} className="space-y-3 mt-4">
+                         {Object.entries(timeReports.projectTimes).map(([project, time]: [string, number]) => (
+                           <div 
+                             key={project}
+                             className="cursor-pointer hover:bg-surface/50 p-3 rounded-lg transition-colors border"
+                             onClick={() => navigate(`/projects/${project === "Website Redesign" ? "1" : "2"}/board`)}
+                           >
+                             <div className="flex items-center justify-between">
+                               <p className="font-medium text-sm">{project}</p>
+                               <p className="text-sm font-medium">{time}h</p>
+                             </div>
+                           </div>
+                         ))}
+                         
+                         {Object.keys(timeReports.projectTimes).length === 0 && (
+                           <div className="text-center py-8">
+                             <Clock className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+                             <p className="text-sm text-muted-foreground mb-3">No time logged</p>
+                             <Button onClick={() => navigate("/projects")}>
+                               Log Time
+                             </Button>
+                           </div>
+                         )}
+                       </TabsContent>
+                     </Tabs>
+                   </CardContent>
+                 </Card>
+
+                 {/* Member Time Reports */}
+                 <Card>
+                   <CardHeader>
+                     <CardTitle className="flex items-center gap-2">
+                       <User className="h-5 w-5" />
+                       Member Time Reports
+                     </CardTitle>
+                   </CardHeader>
+                   <CardContent className="space-y-4">
+                     <Tabs value={selectedTimeReportPeriod} onValueChange={setSelectedTimeReportPeriod}>
+                       <TabsList className="grid w-full grid-cols-3">
+                         <TabsTrigger value="day">Day</TabsTrigger>
+                         <TabsTrigger value="week">Week</TabsTrigger>
+                         <TabsTrigger value="month">Month</TabsTrigger>
+                       </TabsList>
+                       
+                       <TabsContent value={selectedTimeReportPeriod} className="space-y-3 mt-4">
+                         {Object.entries(timeReports.memberTimes).map(([member, time]: [string, number]) => (
+                           <div 
+                             key={member}
+                             className="cursor-pointer hover:bg-surface/50 p-3 rounded-lg transition-colors border"
+                             onClick={() => navigate("/employee-dashboard")}
+                           >
+                             <div className="flex items-center justify-between">
+                               <p className="font-medium text-sm">{member}</p>
+                               <p className="text-sm font-medium">{time}h</p>
+                             </div>
+                           </div>
+                         ))}
+                         
+                         {Object.keys(timeReports.memberTimes).length === 0 && (
+                           <div className="text-center py-8">
+                             <Clock className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+                             <p className="text-sm text-muted-foreground mb-3">No time logged</p>
+                             <Button onClick={() => navigate("/projects")}>
+                               Log Time
+                             </Button>
+                           </div>
+                         )}
+                       </TabsContent>
+                     </Tabs>
+                   </CardContent>
+                 </Card>
+               </div>
+             </TabsContent>
 
             <TabsContent value="team" className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

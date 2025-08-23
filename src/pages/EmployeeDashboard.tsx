@@ -12,6 +12,7 @@ const EmployeeDashboard = () => {
   const navigate = useNavigate();
   
   const [selectedPeriod, setSelectedPeriod] = useState("week");
+  const [selectedTimeReportPeriod, setSelectedTimeReportPeriod] = useState("week");
   
   const currentUser = {
     name: "Sarah Johnson",
@@ -59,9 +60,20 @@ const EmployeeDashboard = () => {
       priority: "low",
       deadline: "2024-01-15",
       timeSpent: 2.0,
-      estimatedTime: 2
+      estimatedTime: 2,
+      timeByPeriod: { day: 2, week: 2, month: 2 }
     }
   ];
+
+  // Enhanced time data with more detailed tracking
+  const enhancedMyTasks = myTasks.map(task => ({
+    ...task,
+    timeByPeriod: task.timeByPeriod || { 
+      day: Math.random() * 4, 
+      week: task.timeSpent, 
+      month: task.timeSpent * 2 
+    }
+  }));
 
   const timeData = {
     day: { logged: 6.5, target: 8, tasks: 3 },
@@ -106,6 +118,34 @@ const EmployeeDashboard = () => {
     // Navigate to the project board and highlight the task
     navigate(`/projects/${task.project === "Website Redesign" ? "1" : "2"}/board`);
   };
+
+  const handleProjectClick = (projectName: string) => {
+    navigate(`/projects/${projectName === "Website Redesign" ? "1" : "2"}/board`);
+  };
+
+  // Calculate time reports
+  const getTimeReports = () => {
+    const currentPeriod = selectedTimeReportPeriod as keyof typeof enhancedMyTasks[0]['timeByPeriod'];
+    
+    const totalTime = enhancedMyTasks.reduce((sum, task) => sum + task.timeByPeriod[currentPeriod], 0);
+    
+    const projectTimes = enhancedMyTasks.reduce((acc, task) => {
+      if (!acc[task.project]) {
+        acc[task.project] = 0;
+      }
+      acc[task.project] += task.timeByPeriod[currentPeriod];
+      return acc;
+    }, {} as Record<string, number>);
+
+    const taskTimes = enhancedMyTasks.map(task => ({
+      ...task,
+      periodTime: task.timeByPeriod[currentPeriod]
+    }));
+
+    return { totalTime, projectTimes, taskTimes };
+  };
+
+  const timeReports = getTimeReports();
 
   return (
     <div className="min-h-screen bg-background">
@@ -211,9 +251,90 @@ const EmployeeDashboard = () => {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Time Tracking */}
-          <Card className="lg:col-span-1">
+        <div className="grid grid-cols-1 gap-8">
+          {/* Time Reports */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                Time Reports
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <Tabs value={selectedTimeReportPeriod} onValueChange={setSelectedTimeReportPeriod}>
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="day">Day</TabsTrigger>
+                  <TabsTrigger value="week">Week</TabsTrigger>
+                  <TabsTrigger value="month">Month</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value={selectedTimeReportPeriod} className="space-y-6 mt-6">
+                  {/* Total Time */}
+                  <div className="p-4 bg-surface rounded-lg">
+                    <div className="text-center">
+                      <p className="text-3xl font-bold text-foreground">{timeReports.totalTime.toFixed(1)}h</p>
+                      <p className="text-sm text-muted-foreground">Total time ({selectedTimeReportPeriod})</p>
+                    </div>
+                  </div>
+
+                  {/* Time by Project */}
+                  <div className="space-y-3">
+                    <h4 className="font-medium text-sm text-muted-foreground">Time by Project</h4>
+                    {Object.entries(timeReports.projectTimes).map(([project, time]) => (
+                      <div 
+                        key={project}
+                        className="cursor-pointer hover:bg-surface/50 p-3 rounded-lg transition-colors border"
+                        onClick={() => handleProjectClick(project)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium text-sm">{project}</p>
+                          <p className="text-sm font-medium">{time.toFixed(1)}h</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Time by Task */}
+                  <div className="space-y-3">
+                    <h4 className="font-medium text-sm text-muted-foreground">Time by Task</h4>
+                    {timeReports.taskTimes.map((task) => (
+                      <div 
+                        key={task.id}
+                        className="cursor-pointer hover:bg-surface/50 p-3 rounded-lg transition-colors border"
+                        onClick={() => handleTaskClick(task)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-sm">{task.title}</p>
+                            <p className="text-xs text-muted-foreground">{task.project}</p>
+                          </div>
+                          <p className="text-sm font-medium">{task.periodTime.toFixed(1)}h</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Empty State */}
+                  {timeReports.totalTime === 0 && (
+                    <div className="text-center py-8">
+                      <div className="w-16 h-16 mx-auto mb-4 bg-surface rounded-full flex items-center justify-center">
+                        <Clock className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-lg font-semibold mb-2">No time logged</h3>
+                      <p className="text-muted-foreground mb-4">Start tracking your time to see reports here.</p>
+                      <Button onClick={() => navigate("/projects")}>
+                        Log Time
+                      </Button>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Time Tracking */}
+            <Card className="lg:col-span-1">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Clock className="h-5 w-5" />
@@ -269,7 +390,7 @@ const EmployeeDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {myTasks.map((task) => (
+                {enhancedMyTasks.map((task) => (
                   <Card 
                     key={task.id}
                     className={`cursor-pointer hover:shadow-md transition-all duration-200 border-l-4 ${getStatusColor(task.status)} hover:border-primary/20`}
@@ -327,7 +448,7 @@ const EmployeeDashboard = () => {
                 ))}
               </div>
               
-              {myTasks.length === 0 && (
+              {enhancedMyTasks.length === 0 && (
                 <div className="text-center py-8">
                   <div className="w-16 h-16 mx-auto mb-4 bg-surface rounded-full flex items-center justify-center">
                     <User className="h-8 w-8 text-muted-foreground" />
@@ -338,6 +459,7 @@ const EmployeeDashboard = () => {
               )}
             </CardContent>
           </Card>
+          </div>
         </div>
       </div>
     </div>

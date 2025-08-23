@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const OwnerDashboard = () => {
   const navigate = useNavigate();
   const [selectedView, setSelectedView] = useState("overview");
+  const [selectedTimeReportPeriod, setSelectedTimeReportPeriod] = useState("week");
 
   const projects = [
     {
@@ -152,6 +153,29 @@ const OwnerDashboard = () => {
     if (utilization >= 75) return "text-primary";
     if (utilization >= 60) return "text-warning";
     return "text-danger";
+  };
+
+  // Sample time report data for projects
+  const getProjectTimeReports = () => {
+    const projectTimeData = {
+      day: { 
+        "Website Redesign": { total: 12, members: { "Sarah Johnson": 6, "John Doe": 4, "Jane Smith": 2 } },
+        "Mobile App Development": { total: 8, members: { "David Chen": 4, "Mike Wilson": 4 } },
+        "Marketing Campaign": { total: 6, members: { "Lisa Rodriguez": 3, "Tom Anderson": 3 } }
+      },
+      week: { 
+        "Website Redesign": { total: 45, members: { "Sarah Johnson": 20, "John Doe": 15, "Jane Smith": 10 } },
+        "Mobile App Development": { total: 32, members: { "David Chen": 18, "Mike Wilson": 14 } },
+        "Marketing Campaign": { total: 24, members: { "Lisa Rodriguez": 12, "Tom Anderson": 12 } }
+      },
+      month: { 
+        "Website Redesign": { total: 180, members: { "Sarah Johnson": 80, "John Doe": 60, "Jane Smith": 40 } },
+        "Mobile App Development": { total: 120, members: { "David Chen": 70, "Mike Wilson": 50 } },
+        "Marketing Campaign": { total: 96, members: { "Lisa Rodriguez": 48, "Tom Anderson": 48 } }
+      }
+    };
+
+    return projectTimeData[selectedTimeReportPeriod as keyof typeof projectTimeData] || {};
   };
 
   return (
@@ -361,10 +385,72 @@ const OwnerDashboard = () => {
                         </div>
                       ))}
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
+                   </CardContent>
+                 </Card>
+               </div>
+
+               {/* Project Time Reports */}
+               <Card>
+                 <CardHeader>
+                   <CardTitle className="flex items-center gap-2">
+                     <Clock className="h-5 w-5" />
+                     Project Time Reports
+                   </CardTitle>
+                 </CardHeader>
+                 <CardContent className="space-y-4">
+                   <Tabs value={selectedTimeReportPeriod} onValueChange={setSelectedTimeReportPeriod}>
+                     <TabsList className="grid w-full grid-cols-3">
+                       <TabsTrigger value="day">Day</TabsTrigger>
+                       <TabsTrigger value="week">Week</TabsTrigger>
+                       <TabsTrigger value="month">Month</TabsTrigger>
+                     </TabsList>
+                     
+                     <TabsContent value={selectedTimeReportPeriod} className="space-y-4 mt-4">
+                       {Object.entries(getProjectTimeReports()).map(([projectName, data]: [string, any]) => (
+                         <div 
+                           key={projectName}
+                           className="cursor-pointer hover:bg-surface/50 p-4 rounded-lg transition-colors border"
+                           onClick={() => navigate(`/projects/${projectName === "Website Redesign" ? "1" : projectName === "Mobile App Development" ? "2" : "3"}/board`)}
+                         >
+                           <div className="flex items-center justify-between mb-3">
+                             <p className="font-medium">{projectName}</p>
+                             <p className="text-lg font-bold">{data.total}h</p>
+                           </div>
+                           
+                           <div className="space-y-1">
+                             <p className="text-xs text-muted-foreground mb-2">Member breakdown:</p>
+                             {Object.entries(data.members).map(([member, hours]: [string, number]) => (
+                               <div key={member} className="flex items-center justify-between text-sm">
+                                 <span 
+                                   className="cursor-pointer hover:text-primary transition-colors"
+                                   onClick={(e) => {
+                                     e.stopPropagation();
+                                     navigate("/employee-dashboard");
+                                   }}
+                                 >
+                                   {member}
+                                 </span>
+                                 <span className="text-muted-foreground">{hours}h</span>
+                               </div>
+                             ))}
+                           </div>
+                         </div>
+                       ))}
+                       
+                       {Object.keys(getProjectTimeReports()).length === 0 && (
+                         <div className="text-center py-8">
+                           <Clock className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+                           <p className="text-sm text-muted-foreground mb-3">No time logged</p>
+                           <Button onClick={() => navigate("/projects")}>
+                             Log Time
+                           </Button>
+                         </div>
+                       )}
+                     </TabsContent>
+                   </Tabs>
+                 </CardContent>
+               </Card>
+             </TabsContent>
 
             <TabsContent value="projects" className="space-y-6">
               <div className="grid grid-cols-1 gap-6">

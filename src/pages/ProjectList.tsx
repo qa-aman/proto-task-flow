@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Users, User, Calendar, MoreHorizontal, Building, FolderPlus, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,8 +15,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 const ProjectList = () => {
   const navigate = useNavigate();
-  const [projects, setProjects] = useState([
-    {
+  
+  // Load projects from localStorage or use default data
+  const [projects, setProjects] = useState(() => {
+    const savedProjects = localStorage.getItem("tm_projects");
+    if (savedProjects) {
+      return JSON.parse(savedProjects);
+    }
+    return [
+      {
       id: 1,
       name: "Website Redesign",
       description: "Complete redesign of company website with modern UI/UX",
@@ -67,7 +74,13 @@ const ProjectList = () => {
       deadline: "2024-01-30",
       subProjects: []
     }
-  ]);
+    ];
+  });
+
+  // Save to localStorage whenever projects change
+  useEffect(() => {
+    localStorage.setItem("tm_projects", JSON.stringify(projects));
+  }, [projects]);
 
   const teamMembers = [
     { id: 1, name: "John Doe", initials: "JD", role: "Frontend Developer" },
@@ -102,7 +115,7 @@ const ProjectList = () => {
         members: selectedMembers,
         status: "planning",
         tasks: { total: 0, completed: 0 },
-        deadline: newProject.deadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        deadline: newProject.deadline || "",
         subProjects: []
       };
       setProjects([...projects, project]);
@@ -278,7 +291,7 @@ const ProjectList = () => {
                         </Badge>
                         <div className="flex items-center text-sm text-muted-foreground">
                           <Calendar className="h-3 w-3 mr-1" />
-                          {new Date(project.deadline).toLocaleDateString()}
+                          {project.deadline ? new Date(project.deadline).toLocaleDateString() : "No deadline"}
                         </div>
                       </div>
                     </div>
