@@ -12,6 +12,7 @@ export interface TimeEntry {
   subtaskId?: number;
   notes: string;
   status: 'submitted' | 'approved' | 'requested_changes';
+  billable: 'billable' | 'non_billable';
 }
 
 export interface TimesheetUser {
@@ -84,8 +85,8 @@ export const isLockedDay = (date: string): boolean => {
   // Weekend (Saturday = 6, Sunday = 0)
   if (dayOfWeek === 0 || dayOfWeek === 6) return true;
   
-  // Sample holidays
-  const holidays = ['2025-01-01', '2025-12-25'];
+  // Sample holidays and org holiday (Wednesday for demo)
+  const holidays = ['2025-01-01', '2025-12-25', '2025-01-22']; // Wednesday as org holiday
   return holidays.includes(date);
 };
 
@@ -93,6 +94,24 @@ export const formatDuration = (seconds: number): string => {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   return `${hours}h ${minutes}m`;
+};
+
+export const hhmmToSeconds = (hhmm: string): number => {
+  if (!hhmm || !hhmm.includes(':')) return 0;
+  const [hours, minutes] = hhmm.split(':').map(Number);
+  return (hours || 0) * 3600 + (minutes || 0) * 60;
+};
+
+export const secondsToHHMM = (seconds: number): string => {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+};
+
+export const clearUserEntriesForDate = (userId: number, date: string): void => {
+  const entries = loadTimeEntries();
+  const filteredEntries = entries.filter(e => !(e.userId === userId && e.date === date));
+  saveTimeEntries(filteredEntries);
 };
 
 export const saveTimeEntries = (entries: TimeEntry[]): void => {
@@ -207,11 +226,12 @@ export const seedDemoData = (): void => {
   const projects = getTimesheetProjects();
   
   const demoEntries: TimeEntry[] = [
+    // Today's entries for demo
     {
       id: 1,
       userId: 3,
       role: 'team_member',
-      date: '2025-01-22',
+      date: new Date().toISOString().split('T')[0],
       startTime: '09:00',
       endTime: '12:00',
       durationSeconds: 10800,
@@ -219,13 +239,14 @@ export const seedDemoData = (): void => {
       subprojectId: 1,
       taskId: 1,
       notes: 'Worked on header component design',
-      status: 'submitted'
+      status: 'submitted',
+      billable: 'billable'
     },
     {
       id: 2,
       userId: 3,
       role: 'team_member', 
-      date: '2025-01-22',
+      date: new Date().toISOString().split('T')[0],
       startTime: '13:00',
       endTime: '17:00',
       durationSeconds: 14400,
@@ -233,7 +254,65 @@ export const seedDemoData = (): void => {
       subprojectId: 1,
       taskId: 2,
       notes: 'Mobile responsive layouts',
-      status: 'approved'
+      status: 'approved',
+      billable: 'billable'
+    },
+    // Mix of billable/non-billable entries across the week
+    {
+      id: 3,
+      userId: 4,
+      role: 'team_member',
+      date: '2025-01-20',
+      startTime: '10:00',
+      endTime: '16:00',
+      durationSeconds: 21600,
+      projectId: 2,
+      subprojectId: 3,
+      taskId: 5,
+      notes: 'iOS development work',
+      status: 'approved',
+      billable: 'billable'
+    },
+    {
+      id: 4,
+      userId: 5,
+      role: 'team_member',
+      date: '2025-01-21',
+      startTime: '09:30',
+      endTime: '12:30',
+      durationSeconds: 10800,
+      projectId: 3,
+      notes: 'Team meeting and planning',
+      status: 'submitted',
+      billable: 'non_billable'
+    },
+    // Org holiday entry (locked day with notes only)
+    {
+      id: 5,
+      userId: 3,
+      role: 'team_member',
+      date: '2025-01-22', // Org holiday
+      startTime: '00:00',
+      endTime: '00:00',
+      durationSeconds: 0,
+      projectId: 1,
+      notes: 'Company holiday - New Year celebration',
+      status: 'submitted',
+      billable: 'non_billable'
+    },
+    // Member on leave simulation
+    {
+      id: 6,
+      userId: 4,
+      role: 'team_member',
+      date: '2025-01-23',
+      startTime: '00:00',
+      endTime: '00:00',
+      durationSeconds: 0,
+      projectId: 2,
+      notes: 'Personal leave day',
+      status: 'approved',
+      billable: 'non_billable'
     }
   ];
   

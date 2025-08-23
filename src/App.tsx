@@ -12,9 +12,7 @@ import ManagerDashboard from "./pages/ManagerDashboard";
 import OwnerDashboard from "./pages/OwnerDashboard";
 import TimesheetMemberDashboard from "./pages/timesheet/TimesheetMemberDashboard";
 import TimesheetDailyLog from "./pages/timesheet/TimesheetDailyLog";
-import TimesheetDailySummary from "./pages/timesheet/TimesheetDailySummary";
 import TimesheetManagerDashboard from "./pages/timesheet/TimesheetManagerDashboard";
-import TimesheetMemberDetail from "./pages/timesheet/TimesheetMemberDetail";
 import TimesheetOwnerDashboard from "./pages/timesheet/TimesheetOwnerDashboard";
 import NotFound from "./pages/NotFound";
 
@@ -37,9 +35,7 @@ const App = () => (
           <Route path="/owner-dashboard" element={<OwnerDashboard />} />
           <Route path="/timesheet" element={<TimesheetMemberDashboard />} />
           <Route path="/timesheet/log" element={<TimesheetDailyLog />} />
-          <Route path="/timesheet/summary" element={<TimesheetDailySummary />} />
           <Route path="/timesheet/manager" element={<TimesheetManagerDashboard />} />
-          <Route path="/timesheet/manager/member/:userId" element={<TimesheetMemberDetail />} />
           <Route path="/timesheet/owner" element={<TimesheetOwnerDashboard />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

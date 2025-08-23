@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
-import { Textarea } from "@/components/ui/textarea";
-import { Plus, Clock, Calendar, TrendingUp, Edit3, Home } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Plus, Clock, Calendar, TrendingUp, Home } from "lucide-react";
 import { 
   loadTimeEntries, 
   getCurrentUser, 
@@ -16,10 +15,8 @@ import {
 } from "@/lib/timesheet";
 
 const TimesheetMemberDashboard = () => {
+  const navigate = useNavigate();
   const [entries, setEntries] = useState<TimeEntry[]>([]);
-  const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
-  const [editNotes, setEditNotes] = useState("");
-  const [isEditingNotes, setIsEditingNotes] = useState(false);
   
   const currentUser = getCurrentUser();
   const projects = getTimesheetProjects();
@@ -76,27 +73,9 @@ const TimesheetMemberDashboard = () => {
     return subproject?.tasks?.find(t => t.id === taskId)?.title || '';
   };
   
-  const handleSaveNotes = () => {
-    if (!selectedEntry) return;
-    
-    const updatedEntries = entries.map(e => 
-      e.id === selectedEntry.id ? { ...e, notes: editNotes } : e
-    );
-    setEntries(updatedEntries);
-    
-    // Save to localStorage
-    const allEntries = loadTimeEntries();
-    const otherUserEntries = allEntries.filter(e => e.userId !== currentUser.id);
-    const updatedAllEntries = [...otherUserEntries, ...updatedEntries];
-    localStorage.setItem('its_timesheet_entries', JSON.stringify(updatedAllEntries));
-    
-    setIsEditingNotes(false);
-  };
-  
-  const openEntryDetail = (entry: TimeEntry) => {
-    setSelectedEntry(entry);
-    setEditNotes(entry.notes);
-    setIsEditingNotes(false);
+  const handleCardClick = (period: 'daily' | 'weekly' | 'monthly') => {
+    // Navigate to Manager view with filters applied
+    navigate(`/timesheet/manager?members=${currentUser.id}&period=${period}`);
   };
 
   return (
@@ -104,7 +83,7 @@ const TimesheetMemberDashboard = () => {
       <div className="container mx-auto p-6">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Time Tracker</h1>
+            <h1 className="text-3xl font-bold">My Timesheet</h1>
             <p className="text-muted-foreground">Welcome back, {currentUser.name}</p>
           </div>
           <div className="flex gap-2">
@@ -123,9 +102,9 @@ const TimesheetMemberDashboard = () => {
           </div>
         </div>
 
-        {/* Summary Cards */}
+        {/* Summary Cards - Clickable */}
         <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <Card>
+          <Card className="cursor-pointer hover:bg-muted/50" onClick={() => handleCardClick('daily')}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Today's Time</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
@@ -138,7 +117,7 @@ const TimesheetMemberDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="cursor-pointer hover:bg-muted/50" onClick={() => handleCardClick('weekly')}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">This Week</CardTitle>
               <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -151,7 +130,7 @@ const TimesheetMemberDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="cursor-pointer hover:bg-muted/50" onClick={() => handleCardClick('monthly')}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">This Month</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -165,13 +144,10 @@ const TimesheetMemberDashboard = () => {
           </Card>
         </div>
 
-        {/* Today's Entries */}
+        {/* Today's Entries - 5 Column Table */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader>
             <CardTitle>Today's Entries</CardTitle>
-            <Button asChild variant="outline" size="sm">
-              <Link to="/timesheet/summary">View Summary</Link>
-            </Button>
           </CardHeader>
           <CardContent>
             {todayEntries.length === 0 ? (
@@ -184,113 +160,40 @@ const TimesheetMemberDashboard = () => {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-3">
-                {todayEntries.map((entry) => (
-                  <Drawer key={entry.id}>
-                    <DrawerTrigger asChild>
-                      <div 
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 cursor-pointer"
-                        onClick={() => openEntryDetail(entry)}
-                      >
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium">{getProjectName(entry.projectId)}</span>
-                            {entry.subprojectId && (
-                              <>
-                                <span className="text-muted-foreground">•</span>
-                                <span className="text-sm text-muted-foreground">
-                                  {getSubprojectName(entry.projectId, entry.subprojectId)}
-                                </span>
-                              </>
-                            )}
-                            {entry.taskId && (
-                              <>
-                                <span className="text-muted-foreground">•</span>
-                                <span className="text-sm text-muted-foreground">
-                                  {getTaskName(entry.projectId, entry.subprojectId, entry.taskId)}
-                                </span>
-                              </>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                            <span>{entry.startTime} - {entry.endTime}</span>
-                            <Badge variant={entry.status === 'approved' ? 'default' : 'secondary'}>
-                              {entry.status.replace('_', ' ')}
-                            </Badge>
-                          </div>
-                          {entry.notes && (
-                            <p className="text-sm text-muted-foreground mt-1 truncate">
-                              {entry.notes}
-                            </p>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <div className="font-medium">{formatDuration(entry.durationSeconds)}</div>
-                        </div>
-                      </div>
-                    </DrawerTrigger>
-                    <DrawerContent>
-                      <DrawerHeader>
-                        <DrawerTitle>Time Entry Details</DrawerTitle>
-                      </DrawerHeader>
-                      <div className="p-6 space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="text-sm font-medium">Project</label>
-                            <p className="text-sm text-muted-foreground">{getProjectName(entry.projectId)}</p>
-                          </div>
-                          <div>
-                            <label className="text-sm font-medium">Duration</label>
-                            <p className="text-sm text-muted-foreground">{formatDuration(entry.durationSeconds)}</p>
-                          </div>
-                          <div>
-                            <label className="text-sm font-medium">Time</label>
-                            <p className="text-sm text-muted-foreground">{entry.startTime} - {entry.endTime}</p>
-                          </div>
-                          <div>
-                            <label className="text-sm font-medium">Status</label>
-                            <Badge variant={entry.status === 'approved' ? 'default' : 'secondary'}>
-                              {entry.status.replace('_', ' ')}
-                            </Badge>
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <label className="text-sm font-medium">Notes</label>
-                            <Button 
-                              size="sm" 
-                              variant="ghost"
-                              onClick={() => setIsEditingNotes(!isEditingNotes)}
-                            >
-                              <Edit3 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                          {isEditingNotes ? (
-                            <div className="space-y-2">
-                              <Textarea 
-                                value={editNotes}
-                                onChange={(e) => setEditNotes(e.target.value)}
-                                placeholder="Add notes about this time entry..."
-                              />
-                              <div className="flex gap-2">
-                                <Button size="sm" onClick={handleSaveNotes}>Save</Button>
-                                <Button size="sm" variant="outline" onClick={() => setIsEditingNotes(false)}>
-                                  Cancel
-                                </Button>
-                              </div>
-                            </div>
-                          ) : (
-                            <p className="text-sm text-muted-foreground">
-                              {entry.notes || 'No notes added'}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </DrawerContent>
-                  </Drawer>
-                ))}
-              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Project</TableHead>
+                    <TableHead>Sub-project</TableHead>
+                    <TableHead>Task</TableHead>
+                    <TableHead>Billable</TableHead>
+                    <TableHead>Time spent</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {todayEntries.map((entry) => (
+                    <TableRow key={entry.id}>
+                      <TableCell className="font-medium">
+                        {getProjectName(entry.projectId)}
+                      </TableCell>
+                      <TableCell>
+                        {entry.subprojectId ? getSubprojectName(entry.projectId, entry.subprojectId) : '-'}
+                      </TableCell>
+                      <TableCell>
+                        {entry.taskId ? getTaskName(entry.projectId, entry.subprojectId, entry.taskId) : '-'}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={entry.billable === 'billable' ? 'default' : 'secondary'}>
+                          {entry.billable === 'billable' ? 'Billable' : 'Non-billable'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {formatDuration(entry.durationSeconds)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             )}
           </CardContent>
         </Card>

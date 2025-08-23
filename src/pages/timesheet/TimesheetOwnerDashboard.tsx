@@ -61,8 +61,10 @@ const TimesheetOwnerDashboard = () => {
     return entryDate >= start && entryDate <= end;
   });
   
-  // Calculate KPIs
+  // Calculate KPIs with billable/non-billable split
   const totalHours = periodEntries.reduce((sum, e) => sum + e.durationSeconds, 0);
+  const billableHours = periodEntries.filter(e => e.billable === 'billable').reduce((sum, e) => sum + e.durationSeconds, 0);
+  const nonBillableHours = totalHours - billableHours;
   
   // Hours by team (role)
   const hoursByTeam = users.reduce((acc, user) => {
@@ -160,9 +162,9 @@ const TimesheetOwnerDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* KPI Cards */}
+        {/* KPI Cards - All clickable for drill-down */}
         <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+          <Card className="cursor-pointer hover:bg-muted/50" onClick={() => window.open('/timesheet/manager', '_blank')}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Hours</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
@@ -170,25 +172,25 @@ const TimesheetOwnerDashboard = () => {
             <CardContent>
               <div className="text-2xl font-bold">{formatDuration(totalHours)}</div>
               <p className="text-xs text-muted-foreground">
-                Across all projects
+                This {period.toLowerCase()}
               </p>
             </CardContent>
           </Card>
 
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+          <Card className="cursor-pointer hover:bg-muted/50" onClick={() => window.open('/timesheet/manager', '_blank')}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Teams</CardTitle>
-              <Building className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Billable vs Non-billable</CardTitle>
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{Object.keys(hoursByTeam).length}</div>
+              <div className="text-2xl font-bold">{formatDuration(billableHours)}</div>
               <p className="text-xs text-muted-foreground">
-                Teams with logged time
+                Billable: {formatDuration(billableHours)} | Non-billable: {formatDuration(nonBillableHours)}
               </p>
             </CardContent>
           </Card>
 
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+          <Card className="cursor-pointer hover:bg-muted/50" onClick={() => window.open('/timesheet/manager', '_blank')}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Top Project</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -201,7 +203,7 @@ const TimesheetOwnerDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+          <Card className="cursor-pointer hover:bg-muted/50" onClick={() => window.open('/timesheet/manager', '_blank')}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Inactive Members</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
@@ -302,7 +304,7 @@ const TimesheetOwnerDashboard = () => {
                       </Badge>
                     </div>
                     <Button asChild size="sm" variant="outline">
-                      <Link to={`/timesheet/manager/member/${user.id}`}>
+                      <Link to={`/timesheet/manager?members=${user.id}`}>
                         View Details
                       </Link>
                     </Button>

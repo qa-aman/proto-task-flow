@@ -7,155 +7,189 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ArrowLeft, Lock, Save } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ArrowLeft, Lock, Save, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { 
   loadTimeEntries, 
-  saveTimeEntry,
+  saveTimeEntries,
   getCurrentUser, 
   getTimesheetProjects,
-  computeDuration,
+  hhmmToSeconds,
   detectOverlaps,
   isLockedDay,
+  clearUserEntriesForDate,
   type TimesheetProject,
   type TimesheetSubproject,
-  type TimesheetTask
+  type TimesheetTask,
+  type TimeEntry
 } from "@/lib/timesheet";
+
+interface TimeRow {
+  id: string;
+  projectId: string;
+  subprojectId: string;
+  taskId: string;
+  billable: 'billable' | 'non_billable';
+  timeSpentHHMM: string;
+}
 
 const TimesheetDailyLog = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
-    startTime: '',
-    endTime: '',
-    projectId: '',
-    subprojectId: '',
-    taskId: '',
-    subtaskId: '',
-    notes: ''
-  });
-  
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [rows, setRows] = useState<TimeRow[]>([]);
+  const [notes, setNotes] = useState('');
   const [projects, setProjects] = useState<TimesheetProject[]>([]);
-  const [selectedProject, setSelectedProject] = useState<TimesheetProject | null>(null);
-  const [selectedSubproject, setSelectedSubproject] = useState<TimesheetSubproject | null>(null);
-  const [selectedTask, setSelectedTask] = useState<TimesheetTask | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const currentUser = getCurrentUser();
-  const isLocked = isLockedDay(formData.date);
+  const isLocked = isLockedDay(selectedDate);
   
   useEffect(() => {
     setProjects(getTimesheetProjects());
+    // Initialize with 5 default rows
+    setRows(Array.from({ length: 5 }, (_, i) => ({
+      id: `row-${i}`,
+      projectId: 'none',
+      subprojectId: 'none',
+      taskId: 'none',
+      billable: 'billable' as const,
+      timeSpentHHMM: ''
+    })));
   }, []);
   
-  useEffect(() => {
-    const project = projects.find(p => p.id.toString() === formData.projectId);
-    setSelectedProject(project || null);
-    if (!project) {
-      setFormData(prev => ({ ...prev, subprojectId: '', taskId: '', subtaskId: '' }));
-      setSelectedSubproject(null);
-      setSelectedTask(null);
-    }
-  }, [formData.projectId, projects]);
+  const addRow = () => {
+    const newRow: TimeRow = {
+      id: `row-${Date.now()}`,
+      projectId: 'none',
+      subprojectId: 'none',
+      taskId: 'none',
+      billable: 'billable',
+      timeSpentHHMM: ''
+    };
+    setRows([...rows, newRow]);
+  };
   
-  useEffect(() => {
-    if (!selectedProject) return;
-    const subproject = selectedProject.subProjects?.find(sp => sp.id.toString() === formData.subprojectId);
-    setSelectedSubproject(subproject || null);
-    if (!subproject) {
-      setFormData(prev => ({ ...prev, taskId: '', subtaskId: '' }));
-      setSelectedTask(null);
+  const removeRow = (rowId: string) => {
+    if (rows.length > 1) {
+      setRows(rows.filter(r => r.id !== rowId));
     }
-  }, [formData.subprojectId, selectedProject]);
+  };
   
-  useEffect(() => {
-    if (!selectedSubproject) return;
-    const task = selectedSubproject.tasks?.find(t => t.id.toString() === formData.taskId);
-    setSelectedTask(task || null);
-    if (!task) {
-      setFormData(prev => ({ ...prev, subtaskId: '' }));
-    }
-  }, [formData.taskId, selectedSubproject]);
+  const updateRow = (rowId: string, field: keyof TimeRow, value: string) => {
+    setRows(rows.map(row => {
+      if (row.id === rowId) {
+        const updated = { ...row, [field]: value };
+        // Reset cascading selects when parent changes
+        if (field === 'projectId') {
+          updated.subprojectId = 'none';
+          updated.taskId = 'none';
+        } else if (field === 'subprojectId') {
+          updated.taskId = 'none';
+        }
+        return updated;
+      }
+      return row;
+    }));
+  };
+  
+  const getProject = (projectId: string) => {
+    return projects.find(p => p.id.toString() === projectId);
+  };
+  
+  const getSubproject = (projectId: string, subprojectId: string) => {
+    const project = getProject(projectId);
+    return project?.subProjects?.find(sp => sp.id.toString() === subprojectId);
+  };
+  
+  const getTask = (projectId: string, subprojectId: string, taskId: string) => {
+    const subproject = getSubproject(projectId, subprojectId);
+    return subproject?.tasks?.find(t => t.id.toString() === taskId);
+  };
+  
+  const isValidRow = (row: TimeRow) => {
+    return row.projectId !== 'none' && row.timeSpentHHMM && hhmmToSeconds(row.timeSpentHHMM) > 0;
+  };
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     
     try {
-      // Validation
-      if (!formData.projectId) {
-        toast({ title: "Error", description: "Please select a project", variant: "destructive" });
-        return;
-      }
+      const validRows = rows.filter(isValidRow);
       
-      if (!isLocked) {
-        if (!formData.startTime || !formData.endTime) {
-          toast({ title: "Error", description: "Please enter start and end times", variant: "destructive" });
-          return;
+      if (isLocked) {
+        // Locked day - only notes allowed
+        if (notes.trim()) {
+          const newEntry: Omit<TimeEntry, 'id'> = {
+            userId: currentUser.id,
+            role: currentUser.role,
+            date: selectedDate,
+            startTime: '00:00',
+            endTime: '00:00',
+            durationSeconds: 0,
+            projectId: validRows[0]?.projectId !== 'none' ? parseInt(validRows[0].projectId) : 1,
+            notes,
+            status: 'submitted',
+            billable: 'non_billable'
+          };
+          
+          const entries = loadTimeEntries();
+          const newId = Date.now();
+          entries.push({ ...newEntry, id: newId });
+          saveTimeEntries(entries);
         }
-        
-        const duration = computeDuration(formData.startTime, formData.endTime);
-        if (duration <= 0) {
-          toast({ title: "Error", description: "End time must be after start time", variant: "destructive" });
-          return;
-        }
-        
-        // Check for overlaps
-        const existingEntries = loadTimeEntries();
-        const newEntry = {
-          userId: currentUser.id,
-          role: currentUser.role,
-          date: formData.date,
-          startTime: formData.startTime,
-          endTime: formData.endTime,
-          durationSeconds: duration,
-          projectId: parseInt(formData.projectId),
-          subprojectId: formData.subprojectId ? parseInt(formData.subprojectId) : undefined,
-          taskId: formData.taskId ? parseInt(formData.taskId) : undefined,
-          subtaskId: formData.subtaskId ? parseInt(formData.subtaskId) : undefined,
-          notes: formData.notes,
-          status: 'submitted' as const
-        };
-        
-        if (detectOverlaps(existingEntries, newEntry)) {
-          toast({ 
-            title: "Error", 
-            description: "This time entry overlaps with an existing entry", 
-            variant: "destructive" 
-          });
-          return;
-        }
-        
-        saveTimeEntry(newEntry);
       } else {
-        // Locked day - notes only
-        const newEntry = {
-          userId: currentUser.id,
-          role: currentUser.role,
-          date: formData.date,
-          startTime: '00:00',
-          endTime: '00:00',
-          durationSeconds: 0,
-          projectId: parseInt(formData.projectId),
-          subprojectId: formData.subprojectId ? parseInt(formData.subprojectId) : undefined,
-          taskId: formData.taskId ? parseInt(formData.taskId) : undefined,
-          subtaskId: formData.subtaskId ? parseInt(formData.subtaskId) : undefined,
-          notes: formData.notes,
-          status: 'submitted' as const
-        };
+        // Normal day - validate and save time entries
+        if (validRows.length === 0) {
+          toast({ title: "Error", description: "Please add at least one valid time entry", variant: "destructive" });
+          return;
+        }
         
-        saveTimeEntry(newEntry);
+        // Check for overlaps (simplified - assuming each row is a separate time block)
+        const entries = loadTimeEntries();
+        const newEntries: TimeEntry[] = [];
+        
+        for (const row of validRows) {
+          const durationSeconds = hhmmToSeconds(row.timeSpentHHMM);
+          
+          // Create a simple time entry (assuming sequential blocks for demo)
+          const newEntry: TimeEntry = {
+            id: Date.now() + Math.random(),
+            userId: currentUser.id,
+            role: currentUser.role,
+            date: selectedDate,
+            startTime: '09:00', // Simplified for demo
+            endTime: '17:00',   // Simplified for demo
+            durationSeconds,
+            projectId: parseInt(row.projectId),
+            subprojectId: row.subprojectId !== 'none' ? parseInt(row.subprojectId) : undefined,
+            taskId: row.taskId !== 'none' ? parseInt(row.taskId) : undefined,
+            notes: notes,
+            status: 'submitted',
+            billable: row.billable
+          };
+          
+          newEntries.push(newEntry);
+        }
+        
+        saveTimeEntries([...entries, ...newEntries]);
       }
       
-      toast({ title: "Success", description: "Time entry saved successfully" });
+      toast({ title: "Success", description: "Time entries saved successfully" });
       navigate('/timesheet');
     } catch (error) {
-      toast({ title: "Error", description: "Failed to save time entry", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to save time entries", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
+  };
+  
+  const handleClearDay = () => {
+    clearUserEntriesForDate(currentUser.id, selectedDate);
+    toast({ title: "Success", description: "Day cleared successfully" });
   };
 
   return (
@@ -167,17 +201,17 @@ const TimesheetDailyLog = () => {
             Back to Dashboard
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">Log Time Entry</h1>
-            <p className="text-muted-foreground">Record your work time</p>
+            <h1 className="text-3xl font-bold">Daily Timesheet Entry</h1>
+            <p className="text-muted-foreground">Log your time with the 5-column table format</p>
           </div>
         </div>
 
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           {isLocked && (
             <Alert className="mb-6">
               <Lock className="h-4 w-4" />
               <AlertDescription>
-                Timesheet is locked for {new Date(formData.date).toLocaleDateString()} due to weekend/holiday. 
+                Timesheet is locked for {new Date(selectedDate).toLocaleDateString()} due to weekend/holiday. 
                 Only notes can be added.
               </AlertDescription>
             </Alert>
@@ -185,159 +219,165 @@ const TimesheetDailyLog = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Time Entry Details</CardTitle>
+              <CardTitle>Time Entry</CardTitle>
+              <div className="flex items-center gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="date">Date</Label>
+                  <Input
+                    id="date"
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="w-48"
+                  />
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="date">Date</Label>
-                    <Input
-                      id="date"
-                      type="date"
-                      value={formData.date}
-                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div /> {/* Empty div for grid alignment */}
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="startTime">Start Time</Label>
-                    <Input
-                      id="startTime"
-                      type="time"
-                      value={formData.startTime}
-                      onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                      disabled={isLocked}
-                      required={!isLocked}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="endTime">End Time</Label>
-                    <Input
-                      id="endTime"
-                      type="time"
-                      value={formData.endTime}
-                      onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                      disabled={isLocked}
-                      required={!isLocked}
-                    />
-                  </div>
-                </div>
-
-                {!isLocked && formData.startTime && formData.endTime && (
-                  <div className="p-4 bg-muted rounded-lg">
-                    <p className="text-sm">
-                      <strong>Duration:</strong> {Math.floor(computeDuration(formData.startTime, formData.endTime) / 3600)}h {Math.floor((computeDuration(formData.startTime, formData.endTime) % 3600) / 60)}m
-                    </p>
+                {!isLocked && (
+                  <div className="space-y-4">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Project</TableHead>
+                          <TableHead>Sub-project</TableHead>
+                          <TableHead>Task</TableHead>
+                          <TableHead>Billable / Non-billable</TableHead>
+                          <TableHead>Time spent (hh:mm)</TableHead>
+                          <TableHead className="w-16">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {rows.map((row) => (
+                          <TableRow key={row.id}>
+                            <TableCell>
+                              <Select
+                                value={row.projectId}
+                                onValueChange={(value) => updateRow(row.id, 'projectId', value)}
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Select project" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">Select project</SelectItem>
+                                  {projects.map((project) => (
+                                    <SelectItem key={project.id} value={project.id.toString()}>
+                                      {project.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell>
+                              <Select
+                                value={row.subprojectId}
+                                onValueChange={(value) => updateRow(row.id, 'subprojectId', value)}
+                                disabled={row.projectId === 'none'}
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Select sub-project" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">None</SelectItem>
+                                  {getProject(row.projectId)?.subProjects?.map((subproject) => (
+                                    <SelectItem key={subproject.id} value={subproject.id.toString()}>
+                                      {subproject.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell>
+                              <Select
+                                value={row.taskId}
+                                onValueChange={(value) => updateRow(row.id, 'taskId', value)}
+                                disabled={row.subprojectId === 'none'}
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Select task" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">None</SelectItem>
+                                  {getSubproject(row.projectId, row.subprojectId)?.tasks?.map((task) => (
+                                    <SelectItem key={task.id} value={task.id.toString()}>
+                                      {task.title}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell>
+                              <Select
+                                value={row.billable}
+                                onValueChange={(value: 'billable' | 'non_billable') => updateRow(row.id, 'billable', value)}
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="billable">Billable</SelectItem>
+                                  <SelectItem value="non_billable">Non-billable</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="text"
+                                placeholder="00:00"
+                                pattern="^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
+                                value={row.timeSpentHHMM}
+                                onChange={(e) => updateRow(row.id, 'timeSpentHHMM', e.target.value)}
+                                className={`w-full ${!isValidRow(row) && row.timeSpentHHMM ? 'border-destructive' : ''}`}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              {rows.length > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeRow(row.id)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                    
+                    <Button type="button" variant="outline" onClick={addRow} className="w-full">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Row
+                    </Button>
                   </div>
                 )}
 
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="project">Project *</Label>
-                    <Select
-                      value={formData.projectId}
-                      onValueChange={(value) => setFormData({ ...formData, projectId: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select project" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {projects.map((project) => (
-                          <SelectItem key={project.id} value={project.id.toString()}>
-                            {project.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {selectedProject?.subProjects && selectedProject.subProjects.length > 0 && (
-                    <div className="space-y-2">
-                      <Label htmlFor="subproject">Subproject</Label>
-                      <Select
-                        value={formData.subprojectId || "none"}
-                        onValueChange={(value) => setFormData({ ...formData, subprojectId: value === "none" ? "" : value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select subproject (optional)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
-                          {selectedProject.subProjects.map((subproject) => (
-                            <SelectItem key={subproject.id} value={subproject.id.toString()}>
-                              {subproject.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-
-                  {selectedSubproject?.tasks && selectedSubproject.tasks.length > 0 && (
-                    <div className="space-y-2">
-                      <Label htmlFor="task">Task</Label>
-                      <Select
-                        value={formData.taskId || "none"}
-                        onValueChange={(value) => setFormData({ ...formData, taskId: value === "none" ? "" : value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select task (optional)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
-                          {selectedSubproject.tasks.map((task) => (
-                            <SelectItem key={task.id} value={task.id.toString()}>
-                              {task.title}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-
-                  {selectedTask?.subtasks && selectedTask.subtasks.length > 0 && (
-                    <div className="space-y-2">
-                      <Label htmlFor="subtask">Subtask</Label>
-                      <Select
-                        value={formData.subtaskId || "none"}
-                        onValueChange={(value) => setFormData({ ...formData, subtaskId: value === "none" ? "" : value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select subtask (optional)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
-                          {selectedTask.subtasks.map((subtask) => (
-                            <SelectItem key={subtask.id} value={subtask.id.toString()}>
-                              {subtask.title}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </div>
-
                 <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
+                  <Label htmlFor="notes">Notes {isLocked ? "(required for locked days)" : "(optional)"}</Label>
                   <Textarea
                     id="notes"
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    placeholder="Add any notes about this work..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Add any notes about your work..."
                     rows={3}
+                    required={isLocked}
                   />
                 </div>
 
                 <div className="flex gap-4">
-                  <Button type="submit" disabled={isSubmitting} className="flex-1">
+                  <Button 
+                    type="submit" 
+                    disabled={isSubmitting || (isLocked && !notes.trim())} 
+                    className="flex-1"
+                  >
                     <Save className="w-4 h-4 mr-2" />
-                    {isSubmitting ? 'Saving...' : 'Save Entry'}
+                    {isSubmitting ? 'Saving...' : 'Save Entries'}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={handleClearDay}>
+                    Clear Day
                   </Button>
                   <Button type="button" variant="outline" onClick={() => navigate('/timesheet')}>
                     Cancel
