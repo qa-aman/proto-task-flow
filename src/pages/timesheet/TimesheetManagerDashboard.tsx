@@ -26,7 +26,7 @@ const TimesheetManagerDashboard = () => {
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [filters, setFilters] = useState({
     period: 'weekly',
-    project: ''
+    project: 'all'
   });
   
   useEffect(() => {
@@ -78,7 +78,7 @@ const TimesheetManagerDashboard = () => {
     const inDateRange = entryDate >= start && entryDate <= end;
     
     const matchesMembers = selectedMembers.length === 0 || selectedMembers.includes(entry.userId.toString());
-    const matchesProject = !filters.project || entry.projectId.toString() === filters.project;
+    const matchesProject = filters.project === 'all' || entry.projectId.toString() === filters.project;
     
     return inDateRange && matchesMembers && matchesProject;
   });
@@ -237,7 +237,7 @@ const TimesheetManagerDashboard = () => {
                     <SelectValue placeholder="All projects" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All projects</SelectItem>
+                    <SelectItem value="all">All projects</SelectItem>
                     {projects.map((project: any) => (
                       <SelectItem key={project.id} value={project.id.toString()}>
                         {project.name}
