@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Calendar, Clock, User, MessageSquare, Paperclip, Plus, Send, Reply, Flag } from "lucide-react";
+import { X, Calendar, Clock, User, MessageSquare, Paperclip, Plus, Send, Reply, Flag, CheckSquare, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger, DrawerFooter } from "@/components/ui/drawer";
 
 interface TaskDetailProps {
   task: any;
@@ -25,6 +26,13 @@ const TaskDetail = ({ task, isOpen, onClose, onUpdate, teamMembers }: TaskDetail
   const [replyTo, setReplyTo] = useState<number | null>(null);
   const [timeLogEntry, setTimeLogEntry] = useState("");
   const [attachToTimesheet, setAttachToTimesheet] = useState(false);
+  const [newSubtask, setNewSubtask] = useState({
+    title: "",
+    assigneeId: "",
+    status: "open" as "open" | "progress" | "done",
+    dueDate: ""
+  });
+  const [isSubtaskDialogOpen, setIsSubtaskDialogOpen] = useState(false);
   
   const [comments, setComments] = useState([
     {
@@ -94,6 +102,30 @@ const TaskDetail = ({ task, isOpen, onClose, onUpdate, teamMembers }: TaskDetail
     }
   };
 
+  const handleAddSubtask = () => {
+    if (newSubtask.title.trim()) {
+      const subtask = {
+        id: Date.now(),
+        title: newSubtask.title,
+        assigneeId: newSubtask.assigneeId ? parseInt(newSubtask.assigneeId) : undefined,
+        status: newSubtask.status,
+        dueDate: newSubtask.dueDate || undefined
+      };
+      
+      const updatedSubtasks = [...(editedTask.subtasks || []), subtask];
+      setEditedTask({ ...editedTask, subtasks: updatedSubtasks });
+      setNewSubtask({ title: "", assigneeId: "", status: "open", dueDate: "" });
+      setIsSubtaskDialogOpen(false);
+    }
+  };
+
+  const handleToggleSubtask = (subtaskId: number, newStatus: "open" | "progress" | "done") => {
+    const updatedSubtasks = editedTask.subtasks.map((st: any) => 
+      st.id === subtaskId ? { ...st, status: newStatus } : st
+    );
+    setEditedTask({ ...editedTask, subtasks: updatedSubtasks });
+  };
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "high": return "danger";
@@ -160,6 +192,159 @@ const TaskDetail = ({ task, isOpen, onClose, onUpdate, teamMembers }: TaskDetail
                   rows={4}
                 />
               </div>
+            </div>
+
+            <Separator />
+
+            {/* Subtasks Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckSquare className="h-5 w-5" />
+                  <h3 className="text-lg font-semibold">Subtasks</h3>
+                  <Badge variant="outline">
+                    {editedTask.subtasks?.filter((st: any) => st.status === 'done').length || 0}/
+                    {editedTask.subtasks?.length || 0}
+                  </Badge>
+                </div>
+                
+                <Drawer open={isSubtaskDialogOpen} onOpenChange={setIsSubtaskDialogOpen}>
+                  <DrawerTrigger asChild>
+                    <Button size="sm" variant="outline">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Subtask
+                    </Button>
+                  </DrawerTrigger>
+                  <DrawerContent>
+                    <DrawerHeader>
+                      <DrawerTitle>Add New Subtask</DrawerTitle>
+                    </DrawerHeader>
+                    <div className="p-6 space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="subtaskTitle">Title</Label>
+                        <Input
+                          id="subtaskTitle"
+                          value={newSubtask.title}
+                          onChange={(e) => setNewSubtask({ ...newSubtask, title: e.target.value })}
+                          placeholder="Enter subtask title"
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="subtaskAssignee">Assignee</Label>
+                          <Select 
+                            value={newSubtask.assigneeId} 
+                            onValueChange={(value) => setNewSubtask({ ...newSubtask, assigneeId: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select assignee" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {teamMembers.map((member) => (
+                                <SelectItem key={member.id} value={member.id.toString()}>
+                                  {member.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="subtaskDueDate">Due Date</Label>
+                          <Input
+                            id="subtaskDueDate"
+                            type="date"
+                            value={newSubtask.dueDate}
+                            onChange={(e) => setNewSubtask({ ...newSubtask, dueDate: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <DrawerFooter>
+                      <div className="flex gap-2">
+                        <Button onClick={handleAddSubtask} className="flex-1">
+                          Add Subtask
+                        </Button>
+                        <Button variant="outline" onClick={() => setIsSubtaskDialogOpen(false)} className="flex-1">
+                          Cancel
+                        </Button>
+                      </div>
+                    </DrawerFooter>
+                  </DrawerContent>
+                </Drawer>
+              </div>
+
+              {/* Subtasks List */}
+              {!editedTask.subtasks || editedTask.subtasks.length === 0 ? (
+                <div className="text-center py-8 border border-dashed rounded-lg">
+                  <CheckSquare className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-muted-foreground">No subtasks yet</p>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="mt-2"
+                    onClick={() => setIsSubtaskDialogOpen(true)}
+                  >
+                    Add your first subtask
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {editedTask.subtasks.map((subtask: any) => (
+                    <div 
+                      key={subtask.id} 
+                      className="flex items-center gap-3 p-3 bg-surface rounded-lg hover:bg-surface/80 transition-colors"
+                    >
+                      <button
+                        onClick={() => {
+                          const nextStatus = subtask.status === 'open' ? 'progress' : 
+                                           subtask.status === 'progress' ? 'done' : 'open';
+                          handleToggleSubtask(subtask.id, nextStatus);
+                        }}
+                        className="text-primary hover:text-primary/80"
+                      >
+                        {subtask.status === 'done' ? (
+                          <CheckSquare className="h-4 w-4" />
+                        ) : (
+                          <Square className="h-4 w-4" />
+                        )}
+                      </button>
+                      
+                      <div className="flex-1">
+                        <p className={`text-sm font-medium ${
+                          subtask.status === 'done' ? 'line-through text-muted-foreground' : ''
+                        }`}>
+                          {subtask.title}
+                        </p>
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          {subtask.assigneeId && (
+                            <div className="flex items-center gap-1">
+                              <User className="h-3 w-3" />
+                              {teamMembers.find(m => m.id === subtask.assigneeId)?.name}
+                            </div>
+                          )}
+                          {subtask.dueDate && (
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {new Date(subtask.dueDate).toLocaleDateString()}
+                            </div>
+                          )}
+                          <Badge 
+                            variant={
+                              subtask.status === 'done' ? 'default' : 
+                              subtask.status === 'progress' ? 'secondary' : 'outline'
+                            } 
+                            className="text-xs"
+                          >
+                            {subtask.status === 'progress' ? 'In Progress' : subtask.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <Separator />
@@ -379,6 +564,80 @@ const TaskDetail = ({ task, isOpen, onClose, onUpdate, teamMembers }: TaskDetail
                     Attach to Timesheet
                   </Label>
                 </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Recurrence Section */}
+            <div className="space-y-4">
+              <h3 className="font-semibold">Recurrence</h3>
+              
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="editDaily"
+                    checked={editedTask.recurrence?.isDaily || false}
+                    onCheckedChange={(checked) => setEditedTask({
+                      ...editedTask,
+                      recurrence: {
+                        ...editedTask.recurrence,
+                        isDaily: checked as boolean,
+                        isWeekly: false,
+                        isRecurring: false
+                      }
+                    })}
+                  />
+                  <Label htmlFor="editDaily">Daily task</Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="editWeekly"
+                    checked={editedTask.recurrence?.isWeekly || false}
+                    onCheckedChange={(checked) => setEditedTask({
+                      ...editedTask,
+                      recurrence: {
+                        ...editedTask.recurrence,
+                        isDaily: false,
+                        isWeekly: checked as boolean,
+                        isRecurring: false
+                      }
+                    })}
+                  />
+                  <Label htmlFor="editWeekly">Weekly task</Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="editRecurring"
+                    checked={editedTask.recurrence?.isRecurring || false}
+                    onCheckedChange={(checked) => setEditedTask({
+                      ...editedTask,
+                      recurrence: {
+                        ...editedTask.recurrence,
+                        isDaily: false,
+                        isWeekly: false,
+                        isRecurring: checked as boolean
+                      }
+                    })}
+                  />
+                  <Label htmlFor="editRecurring">Recurring task</Label>
+                </div>
+
+                {(editedTask.recurrence?.isDaily || editedTask.recurrence?.isWeekly || editedTask.recurrence?.isRecurring) && (
+                  <div className="space-y-2">
+                    <Label>Time</Label>
+                    <Input
+                      type="time"
+                      value={editedTask.recurrence?.time || ""}
+                      onChange={(e) => setEditedTask({
+                        ...editedTask,
+                        recurrence: { ...editedTask.recurrence, time: e.target.value }
+                      })}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 

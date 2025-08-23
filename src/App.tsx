@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ProjectList from "./pages/ProjectList";
+import SubprojectList from "./pages/SubprojectList";
 import TaskBoard from "./pages/TaskBoard";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 import ManagerDashboard from "./pages/ManagerDashboard";
@@ -21,7 +22,9 @@ const App = () => (
         <Routes>
           <Route path="/" element={<ProjectList />} />
           <Route path="/projects" element={<ProjectList />} />
+          <Route path="/projects/:id/subprojects" element={<SubprojectList />} />
           <Route path="/projects/:id/board" element={<TaskBoard />} />
+          <Route path="/projects/:id/subprojects/:sid/board" element={<TaskBoard />} />
           <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
           <Route path="/manager-dashboard" element={<ManagerDashboard />} />
           <Route path="/owner-dashboard" element={<OwnerDashboard />} />

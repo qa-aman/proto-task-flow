@@ -277,7 +277,7 @@ const ProjectList = () => {
               <Card 
                 key={project.id} 
                 className="hover:shadow-lg transition-all duration-200 cursor-pointer group border-border/50 hover:border-primary/20"
-                onClick={() => navigate(`/projects/${project.id}/board`)}
+                onClick={() => navigate(`/projects/${project.id}/subprojects`)}
               >
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">

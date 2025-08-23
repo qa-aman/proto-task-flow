@@ -14,7 +14,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import TaskDetail from "@/components/TaskDetail";
 
 const TaskBoard = () => {
-  const { id } = useParams();
+  const { id, sid } = useParams();
   const navigate = useNavigate();
   
   const [selectedTask, setSelectedTask] = useState(null);
@@ -26,7 +26,15 @@ const TaskBoard = () => {
     startDate: "",
     endDate: "",
     status: "open",
-    priority: "medium"
+    priority: "medium",
+    subProjectId: "",
+    recurrence: {
+      isDaily: false,
+      isWeekly: false,
+      isRecurring: false,
+      time: "",
+      weekday: 0
+    }
   });
 
   const [columns] = useState([
@@ -47,7 +55,14 @@ const TaskBoard = () => {
       status: "progress",
       timeSpent: 8.5,
       priority: "high",
-      comments: []
+      comments: [],
+      subProjectId: null,
+      subtasks: [
+        { id: 1, title: "Create wireframe mockups", assigneeId: 1, status: "done", dueDate: "2024-01-18" },
+        { id: 2, title: "Design navigation flow", assigneeId: 1, status: "progress", dueDate: "2024-01-19" },
+        { id: 3, title: "Review with stakeholders", assigneeId: 2, status: "open", dueDate: "2024-01-20" }
+      ],
+      recurrence: { isDaily: false, isWeekly: false, isRecurring: false, time: "", weekday: 0 }
     },
     {
       id: 2,
@@ -59,7 +74,10 @@ const TaskBoard = () => {
       status: "open",
       timeSpent: 12.0,
       priority: "high",
-      comments: []
+      comments: [],
+      subProjectId: null,
+      subtasks: [],
+      recurrence: { isDaily: false, isWeekly: false, isRecurring: false, time: "", weekday: 0 }
     },
     {
       id: 3,
@@ -71,7 +89,10 @@ const TaskBoard = () => {
       status: "blocked",
       timeSpent: 6.0,
       priority: "medium",
-      comments: []
+      comments: [],
+      subProjectId: null,
+      subtasks: [],
+      recurrence: { isDaily: false, isWeekly: false, isRecurring: false, time: "", weekday: 0 }
     },
     {
       id: 4,
@@ -83,15 +104,40 @@ const TaskBoard = () => {
       status: "done",
       timeSpent: 16.0,
       priority: "low",
-      comments: []
+      comments: [],
+      subProjectId: null,
+      subtasks: [],
+      recurrence: { isDaily: true, isWeekly: false, isRecurring: false, time: "09:00", weekday: 0 }
     }
   ]);
 
-  const project = {
-    id: parseInt(id || "1"),
-    name: "Website Redesign",
-    description: "Complete redesign of company website with modern UI/UX"
-  };
+  // Load project and subprojects from localStorage
+  const [project, setProject] = useState<any>(null);
+  const [currentSubproject, setCurrentSubproject] = useState<any>(null);
+
+  useState(() => {
+    const savedProjects = localStorage.getItem("tm_projects");
+    if (savedProjects) {
+      const projects = JSON.parse(savedProjects);
+      const foundProject = projects.find((p: any) => p.id === parseInt(id || "1"));
+      if (foundProject) {
+        setProject(foundProject);
+        if (sid) {
+          const subproject = foundProject.subProjects?.find((sp: any) => sp.id === parseInt(sid));
+          setCurrentSubproject(subproject);
+        }
+      }
+    } else {
+      // Fallback data
+      const fallbackProject = {
+        id: parseInt(id || "1"),
+        name: "Website Redesign",
+        description: "Complete redesign of company website with modern UI/UX",
+        subProjects: []
+      };
+      setProject(fallbackProject);
+    }
+  });
 
   const teamMembers = [
     { id: 1, name: "Sarah Johnson", initials: "SJ" },
@@ -110,7 +156,10 @@ const TaskBoard = () => {
           null,
         timeSpent: 0,
         priority: newTask.priority,
-        comments: []
+        comments: [],
+        subProjectId: newTask.subProjectId ? parseInt(newTask.subProjectId) : (currentSubproject?.id || null),
+        subtasks: [],
+        recurrence: newTask.recurrence
       };
       setTasks([...tasks, task]);
       setNewTask({
@@ -120,14 +169,29 @@ const TaskBoard = () => {
         startDate: "",
         endDate: "",
         status: "open",
-        priority: "medium"
+        priority: "medium",
+        subProjectId: "",
+        recurrence: {
+          isDaily: false,
+          isWeekly: false,
+          isRecurring: false,
+          time: "",
+          weekday: 0
+        }
       });
       setIsCreateDialogOpen(false);
     }
   };
 
   const getTasksByStatus = (status: string) => {
-    return tasks.filter(task => task.status === status);
+    let filteredTasks = tasks;
+    
+    // Filter by subproject if in subproject context
+    if (currentSubproject) {
+      filteredTasks = tasks.filter(task => task.subProjectId === currentSubproject.id);
+    }
+    
+    return filteredTasks.filter(task => task.status === status);
   };
 
   const getPriorityColor = (priority: string) => {
@@ -141,6 +205,40 @@ const TaskBoard = () => {
 
   const handleTaskUpdate = (updatedTask: any) => {
     setTasks(tasks.map(task => task.id === updatedTask.id ? updatedTask : task));
+    
+    // Handle recurrence when task is marked as done
+    if (updatedTask.status === 'done' && updatedTask.recurrence) {
+      const { isDaily, isWeekly, isRecurring, time, weekday } = updatedTask.recurrence;
+      
+      if (isDaily || isWeekly || isRecurring) {
+        // Create next occurrence
+        const nextTask = {
+          ...updatedTask,
+          id: tasks.length + Math.random(),
+          status: 'open',
+          timeSpent: 0,
+          comments: [],
+          subtasks: updatedTask.subtasks.map((st: any) => ({ ...st, status: 'open' }))
+        };
+        
+        // Calculate next dates based on recurrence type
+        if (isDaily && time) {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          nextTask.startDate = tomorrow.toISOString().split('T')[0];
+        } else if (isWeekly && weekday !== undefined) {
+          const nextWeek = new Date();
+          nextWeek.setDate(nextWeek.getDate() + 7);
+          nextTask.startDate = nextWeek.toISOString().split('T')[0];
+        } else if (isRecurring) {
+          const nextDay = new Date();
+          nextDay.setDate(nextDay.getDate() + 1);
+          nextTask.startDate = nextDay.toISOString().split('T')[0];
+        }
+        
+        setTasks(prev => [...prev, nextTask]);
+      }
+    }
   };
 
   return (
@@ -151,15 +249,19 @@ const TaskBoard = () => {
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
-              onClick={() => navigate("/")}
+              onClick={() => currentSubproject ? navigate(`/projects/${id}/subprojects`) : navigate("/")}
               className="hover:bg-surface"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Projects
+              {currentSubproject ? "Back to Subprojects" : "Back to Projects"}
             </Button>
             <div>
-              <h1 className="text-4xl font-bold text-foreground">{project.name}</h1>
-              <p className="text-muted-foreground text-lg">{project.description}</p>
+              <h1 className="text-4xl font-bold text-foreground">
+                {currentSubproject ? currentSubproject.name : project?.name}
+              </h1>
+              <p className="text-muted-foreground text-lg">
+                {currentSubproject ? project?.name : project?.description}
+              </p>
             </div>
           </div>
           
@@ -241,6 +343,136 @@ const TaskBoard = () => {
                         <SelectItem value="critical">Critical</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                </div>
+
+                {/* Subproject Selection */}
+                {project?.subProjects && project.subProjects.length > 0 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="subproject">Subproject</Label>
+                    <Select value={newTask.subProjectId} onValueChange={(value) => setNewTask({ ...newTask, subProjectId: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select subproject (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">None</SelectItem>
+                        {project.subProjects.map((subproject: any) => (
+                          <SelectItem key={subproject.id} value={subproject.id.toString()}>
+                            {subproject.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Recurrence Section */}
+                <div className="space-y-4 border-t pt-4">
+                  <Label className="text-base font-medium">Recurrence</Label>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="isDaily"
+                        checked={newTask.recurrence.isDaily}
+                        onChange={(e) => setNewTask({
+                          ...newTask,
+                          recurrence: {
+                            isDaily: e.target.checked,
+                            isWeekly: false,
+                            isRecurring: false,
+                            time: newTask.recurrence.time,
+                            weekday: 0
+                          }
+                        })}
+                        className="rounded"
+                      />
+                      <Label htmlFor="isDaily">Is this a Daily task?</Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="isWeekly"
+                        checked={newTask.recurrence.isWeekly}
+                        onChange={(e) => setNewTask({
+                          ...newTask,
+                          recurrence: {
+                            isDaily: false,
+                            isWeekly: e.target.checked,
+                            isRecurring: false,
+                            time: newTask.recurrence.time,
+                            weekday: newTask.recurrence.weekday
+                          }
+                        })}
+                        className="rounded"
+                      />
+                      <Label htmlFor="isWeekly">Is this a Weekly task?</Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="isRecurring"
+                        checked={newTask.recurrence.isRecurring}
+                        onChange={(e) => setNewTask({
+                          ...newTask,
+                          recurrence: {
+                            isDaily: false,
+                            isWeekly: false,
+                            isRecurring: e.target.checked,
+                            time: newTask.recurrence.time,
+                            weekday: 0
+                          }
+                        })}
+                        className="rounded"
+                      />
+                      <Label htmlFor="isRecurring">Is this a Recurring task?</Label>
+                    </div>
+
+                    {(newTask.recurrence.isDaily || newTask.recurrence.isWeekly || newTask.recurrence.isRecurring) && (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="recurrenceTime">Time</Label>
+                          <Input
+                            id="recurrenceTime"
+                            type="time"
+                            value={newTask.recurrence.time}
+                            onChange={(e) => setNewTask({
+                              ...newTask,
+                              recurrence: { ...newTask.recurrence, time: e.target.value }
+                            })}
+                          />
+                        </div>
+                        
+                        {newTask.recurrence.isWeekly && (
+                          <div className="space-y-2">
+                            <Label htmlFor="weekday">Day of Week</Label>
+                            <Select 
+                              value={newTask.recurrence.weekday.toString()} 
+                              onValueChange={(value) => setNewTask({
+                                ...newTask,
+                                recurrence: { ...newTask.recurrence, weekday: parseInt(value) }
+                              })}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="0">Sunday</SelectItem>
+                                <SelectItem value="1">Monday</SelectItem>
+                                <SelectItem value="2">Tuesday</SelectItem>
+                                <SelectItem value="3">Wednesday</SelectItem>
+                                <SelectItem value="4">Thursday</SelectItem>
+                                <SelectItem value="5">Friday</SelectItem>
+                                <SelectItem value="6">Saturday</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -347,9 +579,15 @@ const TaskBoard = () => {
                           )}
                         </div>
                         
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <Clock className="h-3 w-3" />
                           {task.timeSpent}h
+                          {task.subtasks && task.subtasks.length > 0 && (
+                            <div className="flex items-center gap-1">
+                              <span>•</span>
+                              <span>{task.subtasks.filter((st: any) => st.status === 'done').length}/{task.subtasks.length}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                       
